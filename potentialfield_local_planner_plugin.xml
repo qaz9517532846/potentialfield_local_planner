@@ -1,0 +1,7 @@
+<library path="lib/libpotentialfield_local_planner">
+  <class name="potentialfield_local_planner/PotentialFieldLocalPlannerROS" type="potentialfield_local_planner::PotentialFieldLocalPlannerROS" base_class_type="nav_core::BaseLocalPlanner">
+    <description>
+      Potential Field local planner using Potential Field planning
+    </description>
+  </class>
+</library>PotentialFieldLocalPlanner
