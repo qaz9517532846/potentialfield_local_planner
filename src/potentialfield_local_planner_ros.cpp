@@ -26,10 +26,13 @@ namespace potentialfield_local_planner
 
         global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
 		local_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
-		next_heading_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("next_pose", 1);
+		next_heading_pub_ = private_nh.advertise<visualization_msgs::Marker>("maker", 10);
 
         tf_ = tf;
 		costmap_ros_ = costmap_ros;
+
+		linear_vel_.current_vel = 0;
+		rotation_vel_.current_vel = 0;
 		
 		//create the actual planner that we'll use.. it'll configure itself from the parameter server
 		dp_ = boost::shared_ptr<PotentialFieldLocalPlanner>(new PotentialFieldLocalPlanner(name, costmap_ros));
@@ -65,6 +68,7 @@ namespace potentialfield_local_planner
 
 	bool PotentialFieldLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& global_plan)
 	{
+		last_time_ = ros::Time::now();
         global_plan_.clear();
 		local_plan_.clear();
 
@@ -86,6 +90,7 @@ namespace potentialfield_local_planner
 		// We need to compute the next heading point from the global plan.
 		// Calculate potential field local planning.
 		computeNextHeadingIndex(global_plan_);
+		ROS_INFO("Next Index = %d", next_heading_index_);
 		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
 
 		// Calculate the rotation between the current odom and the vector created above
@@ -165,6 +170,7 @@ namespace potentialfield_local_planner
 
 	bool PotentialFieldLocalPlannerROS::rotateToStart(geometry_msgs::Twist& cmd_vel)
 	{
+		ROS_INFO("Rotation To Start.");
 		geometry_msgs::PoseStamped rotate_goal;
 
 		ros::Time now = ros::Time::now();
@@ -208,6 +214,7 @@ namespace potentialfield_local_planner
 
 	bool PotentialFieldLocalPlannerROS::move(geometry_msgs::Twist& cmd_vel)
 	{
+		ROS_INFO("Moving To Goal.");
 		publishNextHeading();
 
 		geometry_msgs::PoseStamped move_goal;
@@ -340,8 +347,7 @@ namespace potentialfield_local_planner
 			next_heading_index_ = i;
 
 			double dist = linearDistance(robot_pose_.pose.position, next_heading_pose.pose.position);
-			//double heading_lookahead_ = std::min(dp_->width_, dp_->height_) * dp_->resolution_;
-			double heading_lookahead_ = 0.3;
+			double heading_lookahead_ = std::min(dp_->width_, dp_->height_) * dp_->resolution_ / 2;
 			if(dist > heading_lookahead_)
 			{
 				break;
@@ -467,6 +473,30 @@ namespace potentialfield_local_planner
 	void PotentialFieldLocalPlannerROS::publishNextHeading(bool show)
 	{
 		const geometry_msgs::PoseStamped& next_pose = global_plan_[next_heading_index_];
-		next_heading_pub_.publish(next_pose);
+
+		visualization_msgs::Marker marker;
+		marker.id = 0;
+		marker.header.stamp = ros::Time::now();
+		marker.header.frame_id= next_pose.header.frame_id;
+		marker.ns = "waypoints";
+		marker.type = visualization_msgs::Marker::CYLINDER;
+
+		if(show)
+		{
+			marker.action = visualization_msgs::Marker::MODIFY;
+			marker.pose = next_pose.pose;
+			marker.scale.x = 0.1;
+			marker.scale.y = 0.1;
+			marker.scale.z = 0.2;
+			marker.color.a = 0.5;
+			marker.color.r = 1.0;
+			marker.color.g = 1.0;
+			marker.color.b = 0.0;
+		}
+		else
+		{
+			marker.action = visualization_msgs::Marker::DELETE;
+		}
+		next_heading_pub_.publish(marker);
 	}
 }

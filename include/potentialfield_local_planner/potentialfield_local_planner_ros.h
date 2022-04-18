@@ -16,6 +16,8 @@
 #include <tf2/utils.h>
 #include "tf2/LinearMath/Quaternion.h"
 #include <costmap_2d/costmap_2d_ros.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <nav_msgs/Path.h>
 
 #include <dynamic_reconfigure/server.h>
