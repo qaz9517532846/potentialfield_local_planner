@@ -41,10 +41,11 @@ namespace potentialfield_local_planner
            bool isGoalReached();
 
         private:
+           void publishNextHeading(bool show = true);
            bool rotateToStart(geometry_msgs::Twist& cmd_vel);
            bool move(geometry_msgs::Twist& cmd_vel);
            bool rotateToGoal(geometry_msgs::Twist& cmd_vel);
-           void computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan, int& cal_next_index_);
+           void computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan);
            double calLinearVel();
            double calRotationVel(double rotation);
            double linearDistance(geometry_msgs::Point p1, geometry_msgs::Point p2);
@@ -52,6 +53,7 @@ namespace potentialfield_local_planner
            const inline double rewrapAngleRestricted(const double angle);
            const inline double RestrictedForwardAngle(const double angle);
            void reconfigureCB(PotentialFieldLocalPlannerConfig &config, uint32_t level);
+
            nav_msgs::Path path_publisher(std::string frame, std::vector<geometry_msgs::PoseStamped> plan);
 
            dynamic_reconfigure::Server<PotentialFieldLocalPlannerConfig> *dsrv_;
@@ -61,6 +63,10 @@ namespace potentialfield_local_planner
 
            ros::Publisher global_plan_pub_;
            ros::Publisher local_plan_pub_;
+           ros::Publisher next_heading_pub_;
+
+           int curr_heading_index_, next_heading_index_;
+           int path_index_;
 
            typedef enum
            {
@@ -76,6 +82,26 @@ namespace potentialfield_local_planner
            costmap_2d::Costmap2DROS* costmap_ros_;
 
            geometry_msgs::PoseStamped robot_pose_;
+
+           // Parameters
+           std::string map_frame_;
+
+           struct constraint_vel
+           {
+               double max_vel;
+               double min_vel;
+               double limit_acc;
+               double current_vel;
+           };
+
+           constraint_vel linear_vel_, rotation_vel_;
+           
+           double yaw_tolerance_, xy_tolerance_;
+           double yaw_moving_tolerance_;
+           double transform_timeout_;
+
+           bool use_BackForward;
+           ros::Time last_time_;
 
            boost::shared_ptr<PotentialFieldLocalPlanner> dp_; ///< @brief The trajectory controller
     };

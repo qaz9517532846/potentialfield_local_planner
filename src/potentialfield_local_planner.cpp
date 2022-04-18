@@ -32,7 +32,7 @@ namespace potentialfield_local_planner
         free_cost_ = config.potential_free_cost;
     }
 
-    void PotentialFieldLocalPlanner::dynamic_Map_Obstacle(unsigned int width, unsigned int height)
+    void PotentialFieldLocalPlanner::dynamic_Map_Obstacle()
     {
         for(unsigned int iy = 0; iy < height_; iy++)
         {
@@ -94,6 +94,9 @@ namespace potentialfield_local_planner
     {
         std::vector<geometry_msgs::PoseStamped> PotentialFieldLocal_Plan_;
         int start_cell[2], goal_cell[2];
+
+        dynamic_Map_Obstacle();
+        
         costmap_->worldToMapEnforceBounds(start.pose.position.x, start.pose.position.y, start_cell[0], start_cell[1]);
         costmap_->worldToMapEnforceBounds(goal.pose.position.x, goal.pose.position.y, goal_cell[0], goal_cell[1]);
 
@@ -117,14 +120,16 @@ namespace potentialfield_local_planner
     void PotentialFieldLocalPlanner::calculateGoalPotential(int goalCell_x, int goalCell_y)
     {
         double goal_pose[2];
-        costmap_->mapToWorld(goalCell_x, goalCell_y, goal_pose[0], goal_pose[1]);
+        goal_pose[0] = goalCell_x * resolution_;
+        goal_pose[1] = goalCell_y * resolution_;
 
         for(unsigned int iy = 0; iy < height_; iy++)
         {
             for(unsigned int ix = 0; ix < width_; ix++)
             {
                 double costmapToWorld[2];
-                costmap_->mapToWorld(ix, iy, costmapToWorld[0], costmapToWorld[1]);
+                costmapToWorld[0] = goalCell_x * resolution_;
+                costmapToWorld[1] = goalCell_y * resolution_;
                 posPotMap_[iy * width_ + ix] = potential_multiplier_ * getDistance(costmapToWorld[0], costmapToWorld[1], goal_pose[0], goal_pose[1]);
             }
         }

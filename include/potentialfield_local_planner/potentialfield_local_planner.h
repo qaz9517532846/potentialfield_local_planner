@@ -26,14 +26,20 @@ namespace potentialfield_local_planner
            PotentialFieldLocalPlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros);
            ~PotentialFieldLocalPlanner();
 
-        private:
+           std::vector<geometry_msgs::PoseStamped> PotentialFieldLocal_Planner(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal);
            void reconfigureCB(PotentialFieldLocalPlannerConfig &config);
-           void dynamic_Map_Obstacle(unsigned int width_, unsigned int height_);
+
+           unsigned int width_;
+           unsigned int height_;
+
+           double resolution_;
+
+        private:
            void sumPointPotential(unsigned int size);
+           void dynamic_Map_Obstacle();
            bool isCellInsideMap(float x, float y);
            bool isStartAndGoalCellsValid(int startCell_x, int startCell_y, int goalCell_x, int goalCell_y);
            float getDistance(float x1, float y1, float x2, float y2);
-           std::vector<geometry_msgs::PoseStamped> PotentialFieldLocal_Planner(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal);
            std::vector<int> potentialPlanner(int startCell_x, int startCell_y, int goalCell_x, int goalCell_y);
            std::vector<int> findPath(int startCell_x, int startCell_y, int goalCell_x, int goalCell_y);
            void calculateGoalPotential(int goalCell_x, int goalCell_y);
@@ -42,15 +48,11 @@ namespace potentialfield_local_planner
 
            costmap_2d::Costmap2D* costmap_;
 
-           unsigned int width_;
-           unsigned int height_;
-           unsigned int map_size_;
-
-           double resolution_;
-
            float* posPotMap_; //position potential map;
            float* obsPotMap_; // obstacle potential map;
            bool* OGM_;
+
+           unsigned int map_size_;
 
            double ratio_;
            double jump_;
