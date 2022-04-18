@@ -160,8 +160,13 @@ namespace potentialfield_local_planner
         int currentCell_y = current / width_;
         int goalCell_x = goal % width_;
         int goalCell_y = goal / width_;
-        costmap_->mapToWorld(currentCell_x, currentCell_y, current_pose[0], current_pose[1]);
-        costmap_->mapToWorld(goalCell_x, goalCell_y, goal_pose[0], goal_pose[1]);
+
+        current_pose[0] = currentCell_x * resolution_;
+        current_pose[1] = currentCell_y * resolution_;
+
+        goal_pose[0] = goalCell_x * resolution_;
+        goal_pose[1] = goalCell_y * resolution_;
+
         return getDistance(current_pose[0], current_pose[1], goal_pose[0], goal_pose[1]) < xy_tolerance_ ? true : false;
     }
 

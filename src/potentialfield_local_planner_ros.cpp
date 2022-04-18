@@ -91,7 +91,7 @@ namespace potentialfield_local_planner
 		// Calculate potential field local planning.
 		computeNextHeadingIndex(global_plan_);
 		ROS_INFO("Next Index = %d", next_heading_index_);
-		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
+		//local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
 
 		// Calculate the rotation between the current odom and the vector created above
 		double rotation = calDeltaAngle(robot_pose_, global_plan_[path_index_]);
@@ -170,7 +170,6 @@ namespace potentialfield_local_planner
 
 	bool PotentialFieldLocalPlannerROS::rotateToStart(geometry_msgs::Twist& cmd_vel)
 	{
-		ROS_INFO("Rotation To Start.");
 		geometry_msgs::PoseStamped rotate_goal;
 
 		ros::Time now = ros::Time::now();
@@ -214,7 +213,6 @@ namespace potentialfield_local_planner
 
 	bool PotentialFieldLocalPlannerROS::move(geometry_msgs::Twist& cmd_vel)
 	{
-		ROS_INFO("Moving To Goal.");
 		publishNextHeading();
 
 		geometry_msgs::PoseStamped move_goal;
