@@ -104,6 +104,26 @@ namespace potentialfield_local_planner
         {
             std::vector<int> potential_field_Planner_;
             potential_field_Planner_ = potentialPlanner(start_cell[0], start_cell[1], goal_cell[0], goal_cell[1]);
+            if(potential_field_Planner_.size() > 0)
+            {
+                for(auto planner : potential_field_Planner_)
+                {
+                    double x = 0.0;
+                    double y = 0.0;
+                    int index = potential_field_Planner_[planner];
+
+                    costmap_->mapToWorld(index % width_, index / width_, x, y);
+                    //x = (index % width_) * resolution_;
+                    //y = (index % height_) * resolution_;
+                    geometry_msgs::PoseStamped pose = goal;
+                    pose.pose.position.x = x;
+                    pose.pose.position.y = y;
+                    pose.pose.orientation = start.pose.orientation;
+                    PotentialFieldLocal_Plan_.push_back(pose);
+                }
+
+                PotentialFieldLocal_Plan_.push_back(goal);
+            }
         }
 
         return PotentialFieldLocal_Plan_;
