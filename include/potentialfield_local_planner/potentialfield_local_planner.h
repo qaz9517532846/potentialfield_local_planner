@@ -35,8 +35,8 @@ namespace potentialfield_local_planner
            double resolution_;
 
         private:
-           void calculate_attract_localMap(unsigned int cell_x, unsigned int cell_y);
-           void calculate_repulsive_localMap();
+           void calcutate_potentialfield_localMap(unsigned int cell_x, unsigned int cell_y);
+           int calculate_bestvalue(int cell);
            double get_distance(unsigned int current_x, unsigned int current_y, unsigned int goal_x, unsigned int goal_y);
 
            costmap_2d::Costmap2D* costmap_;
@@ -51,6 +51,7 @@ namespace potentialfield_local_planner
            double beta_;
            double walk_;
            double free_cost_;
+           double xy_goal_tolerance;
     };
 }
 

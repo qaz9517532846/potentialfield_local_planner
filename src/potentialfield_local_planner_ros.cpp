@@ -345,7 +345,7 @@ namespace potentialfield_local_planner
 			next_heading_index_ = i;
 
 			double dist = linearDistance(robot_pose_.pose.position, next_heading_pose.pose.position);
-			double heading_lookahead_ = std::min(dp_->width_, dp_->height_) * dp_->resolution_ / 2;
+			double heading_lookahead_ = std::min(dp_->width_, dp_->height_) * dp_->resolution_ / 2 * 0.8;
 			if(dist > heading_lookahead_)
 			{
 				break;
