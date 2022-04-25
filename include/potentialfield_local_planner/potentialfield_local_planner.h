@@ -35,23 +35,31 @@ namespace potentialfield_local_planner
            double resolution_;
 
         private:
-           void calcutate_potentialfield_localMap(unsigned int cell_x, unsigned int cell_y);
-           int calculate_bestvalue(int cell);
-           double get_distance(unsigned int current_x, unsigned int current_y, unsigned int goal_x, unsigned int goal_y);
+           void dynamic_window_obstacle(unsigned int width, unsigned int height);
+           float sumPointPotential(unsigned int width, unsigned int height);
+           bool isCellInsideMap(double x, double y);
+           double get_distance(double current_x, double current_y, double goal_x, double goal_y);
+           void calculateGoalPotential(unsigned int goal_cell_x, unsigned int goal_cell_y);
+           bool isGoalAcomplished(unsigned int current_cell, unsigned int goal_cell);
+           int findBestCell(unsigned int cell);
+           std::vector<int> potentialPlanner(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
+           std::vector<int> findPath(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
 
            costmap_2d::Costmap2D* costmap_;
 
-           float* attract_force_; //position potential map;
-           float* repulsive_force_; // obstacle potential map;
-           float* potential_;
+           float* posPotMap_; //position potential map;
+           float* obsPotMap_; // obstacle potential map;
+           bool* OGM_;
 
            unsigned int map_size_;
 
-           double alpha_;
-           double beta_;
+           double ratio_;
+           double jump_;
            double walk_;
+           double constant_;
+           double potential_multiplier_;
            double free_cost_;
-           double xy_goal_tolerance;
+           double xy_goal_tolerance_;
     };
 }
 
