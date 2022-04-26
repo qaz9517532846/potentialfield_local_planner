@@ -41,7 +41,7 @@ namespace potentialfield_local_planner
            double get_distance(double current_x, double current_y, double goal_x, double goal_y);
            void calculateGoalPotential(unsigned int goal_cell_x, unsigned int goal_cell_y);
            bool isGoalAcomplished(unsigned int current_cell, unsigned int goal_cell);
-           int findBestCell(unsigned int cell);
+           unsigned int findBestCell(unsigned int cell);
            std::vector<int> potentialPlanner(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
            std::vector<int> findPath(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
 

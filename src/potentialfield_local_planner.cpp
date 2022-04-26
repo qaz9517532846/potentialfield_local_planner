@@ -87,11 +87,9 @@ namespace potentialfield_local_planner
 
         bestPath = potentialPlanner(start_cell[0], start_cell[1], goal_cell[0], goal_cell[1]); 
 
-        for(auto planner : bestPath)
+        for(const auto& index : bestPath)
         {
             double x, y;
-            int index = bestPath[planner];
-            ROS_INFO("index  = %d", index);
             costmap_->mapToWorld(index % width_, index / width_, x, y);
 
             geometry_msgs::PoseStamped pose = goal;
@@ -102,7 +100,7 @@ namespace potentialfield_local_planner
             PotentialFieldLocal_Plan_.push_back(pose);
         }
 
-        PotentialFieldLocal_Plan_.push_back(goal);
+        //PotentialFieldLocal_Plan_.push_back(goal);
         return PotentialFieldLocal_Plan_;
     }
 
@@ -165,10 +163,10 @@ namespace potentialfield_local_planner
         return get_distance(current_pose[0], current_pose[1], goal_pose[0], goal_pose[1]) < xy_goal_tolerance_ ? true : false;
     }
 
-    int PotentialFieldLocalPlanner::findBestCell(unsigned int cellID)
+    unsigned int PotentialFieldLocalPlanner::findBestCell(unsigned int cellID)
     {
         double pose[2];
-        int index, best_index;
+        unsigned int index, best_index;
         int cell_prime[2];
         float best_value= 999999;
 
