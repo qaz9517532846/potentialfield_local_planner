@@ -6,29 +6,29 @@ PLUGINLIB_EXPORT_CLASS(potentialfield_local_planner::PotentialFieldLocalPlannerR
 
 namespace potentialfield_local_planner
 {
-    PotentialFieldLocalPlannerROS::PotentialFieldLocalPlannerROS() : tf_(NULL),
-                                                                     state_(Finished),
-                                                                     curr_heading_index_(0),
-								                            	     next_heading_index_(0),
-									                                 use_BackForward(false)
-    {
+	PotentialFieldLocalPlannerROS::PotentialFieldLocalPlannerROS() : tf_(NULL),
+                                                                 	state_(Finished),
+                                                                 	curr_heading_index_(0),
+								                         	next_heading_index_(0),
+									                    	use_BackForward(false)
+	{
 
-    }
+	}
 
-    PotentialFieldLocalPlannerROS::~PotentialFieldLocalPlannerROS()
-    {
+	PotentialFieldLocalPlannerROS::~PotentialFieldLocalPlannerROS()
+	{
 		delete dsrv_;
-    }
+	}
 
-    void PotentialFieldLocalPlannerROS::initialize(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros)
-    {
-        ros::NodeHandle private_nh("~/" + name);
+	void PotentialFieldLocalPlannerROS::initialize(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros)
+	{
+		ros::NodeHandle private_nh("~/" + name);
 
-        global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
+		global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
 		local_plan_pub_ = private_nh.advertise<nav_msgs::Path>("local_plan", 1);
 		next_heading_pub_ = private_nh.advertise<visualization_msgs::Marker>("maker", 10);
 
-        tf_ = tf;
+		tf_ = tf;
 		costmap_ros_ = costmap_ros;
 
 		linear_vel_.current_vel = 0;
@@ -38,60 +38,55 @@ namespace potentialfield_local_planner
 		dp_ = boost::shared_ptr<PotentialFieldLocalPlanner>(new PotentialFieldLocalPlanner(name, costmap_ros));
 
 		dsrv_ = new dynamic_reconfigure::Server<PotentialFieldLocalPlannerConfig>(private_nh);
-        dynamic_reconfigure::Server<PotentialFieldLocalPlannerConfig>::CallbackType cb = boost::bind(&PotentialFieldLocalPlannerROS::reconfigureCB, this, _1, _2);
-        dsrv_->setCallback(cb);
-    }
+		dynamic_reconfigure::Server<PotentialFieldLocalPlannerConfig>::CallbackType cb = boost::bind(&PotentialFieldLocalPlannerROS::reconfigureCB, this, _1, _2);
+		dsrv_->setCallback(cb);
+	}
 
 	void PotentialFieldLocalPlannerROS::reconfigureCB(PotentialFieldLocalPlannerConfig &config, uint32_t level)
-    {
-        ROS_INFO("PotentialFieldLocalPlanner reconfigureCB");
+	{
+     	ROS_INFO("PotentialFieldLocalPlanner reconfigureCB");
 
-        map_frame_ = config.map_frame;
-        linear_vel_.max_vel = config.max_linear_vel;
-        linear_vel_.min_vel = config.min_linear_vel;
+     	map_frame_ = config.map_frame;
+     	linear_vel_.max_vel = config.max_linear_vel;
+     	linear_vel_.min_vel = config.min_linear_vel;
 		linear_vel_.limit_acc = config.acc_linear_vel;
-        rotation_vel_.max_vel = config.max_vel_theta;
-        rotation_vel_.min_vel = config.min_vel_theta;
+     	rotation_vel_.max_vel = config.max_vel_theta;
+     	rotation_vel_.min_vel = config.min_vel_theta;
 		rotation_vel_.limit_acc = config.acc_vel_theta;
-        xy_tolerance_ = config.xy_goal_tolerance;
-        yaw_tolerance_ = config.yaw_goal_tolerance;
+		xy_tolerance_ = config.xy_goal_tolerance;
+		yaw_tolerance_ = config.yaw_goal_tolerance;
 		yaw_moving_tolerance_ = config.yaw_moving_tolerance;
-        transform_timeout_ = config.timeout;
+     	transform_timeout_ = config.timeout;
+		heading_lookahead_ = config.lookahead;
 
 		dp_->reconfigureCB(config);
-    }
+	}
 
-    bool PotentialFieldLocalPlannerROS::isGoalReached()
-    {
-        return (state_ == Finished);
-    }
+	bool PotentialFieldLocalPlannerROS::isGoalReached()
+	{
+		return (state_ == Finished);
+	}
 
 	bool PotentialFieldLocalPlannerROS::setPlan(const std::vector<geometry_msgs::PoseStamped>& global_plan)
 	{
 		last_time_ = ros::Time::now();
-        global_plan_.clear();
+     	global_plan_.clear();
 		local_plan_.clear();
 
 		// Make our copy of the global plan
 		global_plan_ = global_plan;
 
-        ROS_INFO("Got Plan.");
+     	ROS_INFO("Got Plan.");
 
 		curr_heading_index_ = 0;
 		next_heading_index_ = 0;
 		path_index_ = global_plan_.size() - 1;
 
-        if(!costmap_ros_->getRobotPose(robot_pose_))
+     	if(!costmap_ros_->getRobotPose(robot_pose_))
 		{
 			ROS_ERROR("path_executer: cannot get robot pose");
 			return false;
 		}
-
-		// We need to compute the next heading point from the global plan.
-		// Calculate potential field local planning.
-		computeNextHeadingIndex(global_plan_);
-		ROS_INFO("Next Index = %d", next_heading_index_);
-		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
 
 		// Calculate the rotation between the current odom and the vector created above
 		double rotation = calDeltaAngle(robot_pose_, global_plan_[path_index_]);
@@ -100,25 +95,26 @@ namespace potentialfield_local_planner
 
 		if(linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) <= xy_tolerance_)
 		{
+			ROS_INFO("Rotating to Goal");
 			state_ = RotatingToGoal;
 		}
 		else if(fabs(rotation) <= yaw_moving_tolerance_ &&
 		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
 		{
+			ROS_INFO("Rotating to Moving");
 			state_ = Moving;
 		}
 		else if(fabs(rotation) > yaw_moving_tolerance_ &&
 		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
 		{
 			// Set the state to RotatingToStart
+			ROS_INFO("Rotating to start");
 			state_ = RotatingToStart;
 		}
 
-        nav_msgs::Path global_path_ = path_publisher("map", global_plan_);
-		nav_msgs::Path local_path_ = path_publisher("map", local_plan_);
-        global_plan_pub_.publish(global_path_);
-		local_plan_pub_.publish(local_path_);
-        return true;
+     	nav_msgs::Path global_path_ = path_publisher("map", global_plan_);
+     	global_plan_pub_.publish(global_path_);
+     	return true;
 	}
 
 	bool PotentialFieldLocalPlannerROS::computeVelocityCommands(geometry_msgs::Twist& cmd_vel)
@@ -135,6 +131,14 @@ namespace potentialfield_local_planner
 		// Set the default return value as false
 		bool ret = false;
 
+		// We need to compute the next heading point from the global plan.
+		// Calculate potential field local planning.
+		computeNextHeadingIndex(global_plan_);
+		ROS_INFO("Next Index = %d", next_heading_index_);
+		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
+		nav_msgs::Path local_path_ = path_publisher("map", local_plan_);
+		local_plan_pub_.publish(local_path_);
+
 		if(!costmap_ros_->getRobotPose(robot_pose_))
 		{
 			ROS_ERROR("path_executer: cannot get robot pose");
@@ -144,29 +148,29 @@ namespace potentialfield_local_planner
 		switch(state_)
 		{
 			case RotatingToStart:
-			   ret = rotateToStart(cmd_vel);
-			   break;
-		    case Moving:
-			   ret = move(cmd_vel);
-			   break;
-		    case RotatingToGoal:
-			   ret = rotateToGoal(cmd_vel);
-			   break;
-		    default:
-			   return true;
+				ret = rotateToStart(cmd_vel);
+				break;
+			case Moving:
+				ret = move(cmd_vel);
+				break;
+			case RotatingToGoal:
+				ret = rotateToGoal(cmd_vel);
+				break;
+			default:
+				return true;
 		}
 
 		return ret;
 	}
 
-    nav_msgs::Path PotentialFieldLocalPlannerROS::path_publisher(std::string frame, std::vector<geometry_msgs::PoseStamped> plan)
-    {
-        nav_msgs::Path pub_path_;
+	nav_msgs::Path PotentialFieldLocalPlannerROS::path_publisher(std::string frame, std::vector<geometry_msgs::PoseStamped> plan)
+	{
+     	nav_msgs::Path pub_path_;
 		pub_path_.header.stamp = ros::Time::now();
-        pub_path_.header.frame_id = frame;
-        pub_path_.poses = plan;
+     	pub_path_.header.frame_id = frame;
+     	pub_path_.poses = plan;
 		return pub_path_;
-    }
+	}
 
 	bool PotentialFieldLocalPlannerROS::rotateToStart(geometry_msgs::Twist& cmd_vel)
 	{
@@ -196,7 +200,7 @@ namespace potentialfield_local_planner
 			return false;
 		}
 
-	    double rotation = calDeltaAngle(robot_pose_, rotate_goal);
+		double rotation = calDeltaAngle(robot_pose_, rotate_goal);
 		rotation = RestrictedForwardAngle(rotation);
 		//ROS_INFO("delta_th = %f", rotation);
 
@@ -274,27 +278,13 @@ namespace potentialfield_local_planner
 	{
 		geometry_msgs::PoseStamped rotate_goal;
 
-		ros::Time now = ros::Time::now();
-		global_plan_[next_heading_index_].header.stamp = now;
-
 		try
 		{
-			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, global_plan_[next_heading_index_].header.frame_id, now, ros::Duration(transform_timeout_));
-      		tf2::doTransform(global_plan_[next_heading_index_], rotate_goal, trans);
+			tf_->transform(global_plan_[path_index_], rotate_goal, map_frame_); 
 		}
-		catch(tf2::LookupException& ex)
+		catch(tf2::TransformException& ex)
 		{
-			ROS_ERROR("Lookup Error: %s\n", ex.what());
-			return false;
-		}
-		catch(tf2::ConnectivityException& ex)
-		{
-			ROS_ERROR("Connectivity Error: %s\n", ex.what());
-			return false;
-		}
-		catch(tf2::ExtrapolationException& ex)
-		{
-			ROS_ERROR("Extrapolation Error: %s\n", ex.what());
+			ROS_ERROR("Transform Error: %s\n", ex.what());
 			return false;
 		}
 
@@ -345,7 +335,6 @@ namespace potentialfield_local_planner
 			next_heading_index_ = i;
 
 			double dist = linearDistance(robot_pose_.pose.position, next_heading_pose.pose.position);
-			double heading_lookahead_ = std::min(dp_->width_, dp_->height_) * dp_->resolution_ / 2 * 0.8;
 			if(dist > heading_lookahead_)
 			{
 				break;
@@ -357,11 +346,10 @@ namespace potentialfield_local_planner
 	{
 		double vel = 0.0;
 
-	    double straight_dist = linearDistance(robot_pose_.pose.position, global_plan_[next_heading_index_].pose.position);
+		double straight_dist = linearDistance(robot_pose_.pose.position, global_plan_[next_heading_index_].pose.position);
 
-		vel = use_BackForward == false ? 
-		                         sqrt(2 * linear_vel_.limit_acc * straight_dist) :
-								 -sqrt(2 * linear_vel_.limit_acc * straight_dist);
+		vel = use_BackForward == false ? sqrt(2 * linear_vel_.limit_acc * straight_dist) :
+								   -sqrt(2 * linear_vel_.limit_acc * straight_dist);
 
 		double dt = (ros::Time::now() - last_time_).toSec();
 

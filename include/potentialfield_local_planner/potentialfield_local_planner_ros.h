@@ -101,6 +101,7 @@ namespace potentialfield_local_planner
            double yaw_tolerance_, xy_tolerance_;
            double yaw_moving_tolerance_;
            double transform_timeout_;
+           double heading_lookahead_;
 
            bool use_BackForward;
            ros::Time last_time_;

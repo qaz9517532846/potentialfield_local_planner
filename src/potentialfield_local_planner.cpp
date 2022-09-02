@@ -8,12 +8,6 @@ namespace potentialfield_local_planner
         width_ = costmap_->getSizeInCellsX();
         height_ = costmap_->getSizeInCellsY();
         resolution_ = costmap_->getResolution();
-
-        map_size_ = width_ * height_;
-
-        posPotMap_ = new float [map_size_];
-        obsPotMap_ = new float [map_size_];
-        OGM_ = new bool [map_size_];
     }
 
     PotentialFieldLocalPlanner::~PotentialFieldLocalPlanner()
@@ -23,185 +17,114 @@ namespace potentialfield_local_planner
 
     void PotentialFieldLocalPlanner::reconfigureCB(PotentialFieldLocalPlannerConfig &config)
     {
-        ratio_ = config.ratio;
-        jump_ = config.jump;
-        constant_ = config.constant;
-        potential_multiplier_ = config.potential_multiplier;
-        walk_ = config.walk;
-        free_cost_ = config.potential_free_cost;
-        xy_goal_tolerance_ = config.xy_goal_tolerance;
+        att_gain_ = config.att_gain;
+        rep_gain_ = config.rep_gain;
+        obs_cost_ = config.potential_obs_cost;
+        min_obs_dis_ = config.min_obs_distance;
     }
 
-    void PotentialFieldLocalPlanner::dynamic_window_obstacle(unsigned int width, unsigned int height)
+    void PotentialFieldLocalPlanner::calculate_att_force(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal, VectorForce &force)
     {
-        for(unsigned int iy = 0; iy < height; iy++)
+        force.x = att_gain_ * (goal.pose.position.x - start.pose.position.x);
+		force.y = att_gain_ * (goal.pose.position.y - start.pose.position.y);
+    }
+
+    void PotentialFieldLocalPlanner::calculate_rep_force(geometry_msgs::PoseStamped start, VectorForce &force)
+    {
+        double obs_x, obs_y;
+        double diff_x, diff_y;
+        double min_x, min_y;
+        double min_dis = min_obs_dis_;
+
+        min_x = 0; min_y = 0;
+        for(unsigned int iy = 0; iy < height_; iy++)
         {
-            for(unsigned int ix = 0; ix < width; ix++)
+            for(unsigned int ix = 0; ix < width_; ix++)
             {
                 unsigned int cost = costmap_->getCost(ix, iy);
-                OGM_[iy * width_ + ix] = cost < free_cost_ ? true : false;
-                obsPotMap_[iy * width_ + ix] = !OGM_[iy * width_ + ix] ? sumPointPotential(ix, iy) : 0;
-            }
-        }
-    }
-
-    float PotentialFieldLocalPlanner::sumPointPotential(unsigned int width, unsigned int height)
-    {
-        double x, y;
-        float cost;
-        int index = width + height * width_;
-
-        costmap_->mapToWorld(width, height, x, y);
-
-        for(register float i = -ratio_; i < ratio_; i += jump_ * resolution_)
-        {
-            for(register float j = -(ratio_ - fabs(i)); j < (ratio_ - fabs(i)); j += jump_ * resolution_)
-            {
-                if(isCellInsideMap(x + i, y + j))
+                if(cost >= obs_cost_)
                 {
-                    cost = (i != 0 || j != 0) ? constant_ / get_distance(x + i, y + j, x, y) : 300000;
-                }
-            }
-        }
+                    costmap_->mapToWorld(ix, iy, obs_x, obs_y);
 
-        return cost;
-    }
-
-    bool PotentialFieldLocalPlanner::isCellInsideMap(double x, double y)
-    {
-        int x_prime, y_prime;
-        costmap_->worldToMapEnforceBounds(x, y, x_prime, y_prime);
-        return x_prime < width_ && x_prime >= 0 && y_prime < height_ && y_prime >= 0;
-    }
-
-    std::vector<geometry_msgs::PoseStamped> PotentialFieldLocalPlanner::PotentialFieldLocal_Planner(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal)
-    {
-        std::vector<geometry_msgs::PoseStamped> PotentialFieldLocal_Plan_;
-        std::vector<int> bestPath;
-        bestPath.clear();
-
-        int start_cell[2], goal_cell[2];
-
-        costmap_->worldToMapEnforceBounds(start.pose.position.x, start.pose.position.y, start_cell[0], start_cell[1]);
-        costmap_->worldToMapEnforceBounds(goal.pose.position.x, goal.pose.position.y, goal_cell[0], goal_cell[1]);
-
-        bestPath = potentialPlanner(start_cell[0], start_cell[1], goal_cell[0], goal_cell[1]); 
-
-        for(const auto& index : bestPath)
-        {
-            double x, y;
-            costmap_->mapToWorld(index % width_, index / width_, x, y);
-
-            geometry_msgs::PoseStamped pose = goal;
-            pose.pose.position.x = x;
-            pose.pose.position.y = y;
-            pose.pose.position.z = 0.0;
-            pose.pose.orientation = start.pose.orientation;
-            PotentialFieldLocal_Plan_.push_back(pose);
-        }
-
-        //PotentialFieldLocal_Plan_.push_back(goal);
-        return PotentialFieldLocal_Plan_;
-    }
-
-    std::vector<int> PotentialFieldLocalPlanner::potentialPlanner(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y)
-    {
-        std::vector<int> bestPath;
-        calculateGoalPotential(goal_cell_x, goal_cell_y);
-        bestPath = findPath(current_cell_x, current_cell_y, goal_cell_x, goal_cell_y);
-        return bestPath;
-    }
-
-    void PotentialFieldLocalPlanner::calculateGoalPotential(unsigned int goal_cell_x, unsigned int goal_cell_y)
-    {
-        double goal_x, goal_y;
-        costmap_->mapToWorld(goal_cell_x, goal_cell_y, goal_x, goal_y);
-
-        double x, y;
-
-        for(int iy = 0; iy < height_; iy++)
-        {
-            for(int ix = 0; ix < width_; ix++)
-            {
-                costmap_->mapToWorld(ix, iy, x, y);
-                posPotMap_[ix + iy * width_] = potential_multiplier_ * get_distance(ix, iy, goal_x, goal_y);
-            }
-        }
-    }
-
-    std::vector<int> PotentialFieldLocalPlanner::findPath(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y)
-    {
-        std::vector<int> bestPath;
-        int currentCell = current_cell_x + current_cell_y * width_;
-        int goalCell = goal_cell_x + goal_cell_y * width_;
-
-        bestPath.push_back(currentCell);
-
-        while(!isGoalAcomplished(currentCell, goalCell))
-        {
-            currentCell = findBestCell(currentCell);
-
-            if(currentCell == - 1)
-            {
-                return bestPath;
-            }
-
-            bestPath.push_back(currentCell);
-        }
-
-        return bestPath;
-    }
-
-    bool PotentialFieldLocalPlanner::isGoalAcomplished(unsigned int current_cell, unsigned int goal_cell)
-    {
-        double current_pose[2];
-        double goal_pose[2];
-
-        costmap_->mapToWorld(current_cell % width_, current_cell / width_, current_pose[0], current_pose[1]);
-        costmap_->mapToWorld(goal_cell % width_, goal_cell / width_, goal_pose[0], goal_pose[1]);
-
-        return get_distance(current_pose[0], current_pose[1], goal_pose[0], goal_pose[1]) < xy_goal_tolerance_ ? true : false;
-    }
-
-    unsigned int PotentialFieldLocalPlanner::findBestCell(unsigned int cellID)
-    {
-        double pose[2];
-        unsigned int index, best_index;
-        int cell_prime[2];
-        float best_value= 999999;
-
-        costmap_->mapToWorld(cellID % width_, cellID / width_, pose[0], pose[1]);
-
-        std::cout << " DADO: (" << pose[0] << "," << pose[1] << ") INDEX: " << index << std::endl;
-
-        for(float i = -walk_ * resolution_ ; i <=  walk_ * resolution_ ; i+= resolution_)
-        {
-            for(float j = -walk_ * resolution_ ; j <= walk_ * resolution_ ; j+= resolution_)
-            {
-                if(isCellInsideMap(pose[0] + i, pose[1] + j))
-                {
-                    costmap_->worldToMapEnforceBounds(pose[0] + i, pose[1] + j, cell_prime[0], cell_prime[1]); 
-                    index = cell_prime[0] + cell_prime[1] * width_;
-                    if(best_value > obsPotMap_[index] + posPotMap_[index])
+                    diff_x = obs_x - start.pose.position.x;
+                    diff_y = obs_y - start.pose.position.y;
+                    if(callinearDistance(diff_x, diff_y) < min_dis)
                     {
-                        best_value = obsPotMap_[index] + posPotMap_[index];
-                        best_index = index;
+                        min_dis = callinearDistance(diff_x, diff_y);
+                        min_x = diff_x * 100;
+                        min_y = diff_y * 100;
                     }
                 }
             }
         }
 
-        if(best_index == cellID)
-        {
-            ROS_ERROR("MINIMO LOCAL");
-            return -1;
-        }
-
-        return best_index;
+        double gain = pow(rep_gain_, 3) / (rep_gain_ - min_obs_dis_);
+        force.x = min_x != 0 ? gain * (1 / min_obs_dis_ - 1 / min_x) * pow(1 / min_x, 2) : 0;
+        force.y = min_y != 0 ? gain * (1 / min_obs_dis_ - 1 / min_y) * pow(1 / min_y, 2) : 0;
     }
 
-    double PotentialFieldLocalPlanner::get_distance(double current_x, double current_y, double goal_x, double goal_y)
+    std::vector<geometry_msgs::PoseStamped> PotentialFieldLocalPlanner::PotentialFieldLocal_Planner(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal)
     {
-        return sqrt(pow(goal_x - current_x, 2) + pow(goal_y - current_y, 2));
+        std::vector<geometry_msgs::PoseStamped> PotentialFieldLocal_Plan_;
+
+        geometry_msgs::PoseStamped potential_pose = start;
+
+        VectorForce att_force_, rep_force_, sum_force_;
+
+        calculate_att_force(start, goal, att_force_);
+        calculate_rep_force(start, rep_force_);
+
+        sum_force_.x = att_force_.x + rep_force_.x;
+        sum_force_.y = att_force_.y + rep_force_.y;
+
+        calPotentialFieldLocal_Path(start, sum_force_, PotentialFieldLocal_Plan_);
+        return PotentialFieldLocal_Plan_;
     }
+
+    void PotentialFieldLocalPlanner::calPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, std::vector<geometry_msgs::PoseStamped> &path)
+    {
+        double force_angle = atan2(force.y, force.x);
+        double delta_angle = force_angle / PATH_POINT_NUM;
+        double delta_dis = callinearDistance(force.x, force.y) / PATH_POINT_NUM;
+        double pose_angle = calRotationZ(start);
+
+        path.push_back(start);
+        for(int i = 0; i < PATH_POINT_NUM; i++)
+        {
+            tf2::Quaternion quat;
+            geometry_msgs::Quaternion quat_tf;
+            geometry_msgs::PoseStamped force_pose = start;
+
+            quat.setRPY(0, 0, pose_angle + i * delta_angle);
+            quat_tf = tf2::toMsg(quat);
+            force_pose.pose.orientation = quat_tf;
+
+            tf2::Vector3 force_point = tf2::Matrix3x3(quat) * tf2::Vector3(delta_dis * i, 0, 0);
+            force_pose.pose.position.x += force_point[0];
+			force_pose.pose.position.y += force_point[1];
+			path.push_back(force_pose);
+        }
+    }
+
+    double PotentialFieldLocalPlanner::callinearDistance(double diff_x, double diff_y)
+	{
+		return sqrt(pow(diff_x, 2) + pow(diff_y, 2));
+	}
+
+    double PotentialFieldLocalPlanner::calRotationZ(geometry_msgs::PoseStamped pose)
+    {
+        double point_rpy_[3];
+        tf2::Quaternion q(pose.pose.orientation.x, 
+			              pose.pose.orientation.y, 
+						  pose.pose.orientation.z, 
+						  pose.pose.orientation.w);
+			
+		// 3x3 Rotation matrix from quaternion
+		tf2::Matrix3x3 m(q);
+		// Roll Pitch and Yaw from rotation matrix
+		m.getRPY(point_rpy_[0], point_rpy_[1], point_rpy_[2]);
+        return point_rpy_[2];
+    }
+
+    
 }

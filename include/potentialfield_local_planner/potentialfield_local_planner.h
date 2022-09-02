@@ -18,6 +18,8 @@
 
 #include <algorithm>
 
+#define PATH_POINT_NUM 10
+
 namespace potentialfield_local_planner
 {
     class PotentialFieldLocalPlanner
@@ -35,30 +37,25 @@ namespace potentialfield_local_planner
            double resolution_;
 
         private:
-           void dynamic_window_obstacle(unsigned int width, unsigned int height);
-           float sumPointPotential(unsigned int width, unsigned int height);
-           bool isCellInsideMap(double x, double y);
-           double get_distance(double current_x, double current_y, double goal_x, double goal_y);
-           void calculateGoalPotential(unsigned int goal_cell_x, unsigned int goal_cell_y);
-           bool isGoalAcomplished(unsigned int current_cell, unsigned int goal_cell);
-           unsigned int findBestCell(unsigned int cell);
-           std::vector<int> potentialPlanner(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
-           std::vector<int> findPath(unsigned int current_cell_x, unsigned int current_cell_y, unsigned int goal_cell_x, unsigned int goal_cell_y);
 
+           struct VectorForce
+           {
+                double x;
+                double y;
+           };
+
+           void calculate_att_force(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal, VectorForce &force);
+           void calculate_rep_force(geometry_msgs::PoseStamped start, VectorForce &force);
+           double callinearDistance(double diff_x, double diff_y);
+           void calPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, std::vector<geometry_msgs::PoseStamped> &path);
+           double calRotationZ(geometry_msgs::PoseStamped pose);
+           
            costmap_2d::Costmap2D* costmap_;
 
-           float* posPotMap_; //position potential map;
-           float* obsPotMap_; // obstacle potential map;
-           bool* OGM_;
-
-           unsigned int map_size_;
-
-           double ratio_;
-           double jump_;
-           double walk_;
-           double constant_;
-           double potential_multiplier_;
-           double free_cost_;
+           double att_gain_;
+           double rep_gain_;
+           double min_obs_dis_;
+           double obs_cost_;
            double xy_goal_tolerance_;
     };
 }
