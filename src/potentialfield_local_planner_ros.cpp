@@ -95,20 +95,16 @@ namespace potentialfield_local_planner
 
 		if(linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) <= xy_tolerance_)
 		{
-			ROS_INFO("Rotating to Goal");
 			state_ = RotatingToGoal;
 		}
 		else if(fabs(rotation) <= yaw_moving_tolerance_ &&
 		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
 		{
-			ROS_INFO("Rotating to Moving");
 			state_ = Moving;
 		}
 		else if(fabs(rotation) > yaw_moving_tolerance_ &&
 		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
 		{
-			// Set the state to RotatingToStart
-			ROS_INFO("Rotating to start");
 			state_ = RotatingToStart;
 		}
 
@@ -221,12 +217,12 @@ namespace potentialfield_local_planner
 
 		geometry_msgs::PoseStamped move_goal;
 		ros::Time now = ros::Time::now();
-		global_plan_[next_heading_index_].header.stamp = now;
+		local_plan_.back().header.stamp = now;
 
 		try
 		{
-			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, global_plan_[next_heading_index_].header.frame_id, now, ros::Duration(transform_timeout_));
-      		tf2::doTransform(global_plan_[next_heading_index_], move_goal, trans);
+			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_.back().header.frame_id, now, ros::Duration(transform_timeout_));
+      		tf2::doTransform(local_plan_.back(), move_goal, trans);
 		}
 		catch(tf2::LookupException& ex)
 		{
@@ -256,7 +252,6 @@ namespace potentialfield_local_planner
 			cmd_vel.angular.z = 0.0;
 		}
 
-		cmd_vel.linear.x = calLinearVel();
 		double distance_to_next_heading = linearDistance(robot_pose_.pose.position, move_goal.pose.position);
 
 		// We are approaching the goal position, slow down

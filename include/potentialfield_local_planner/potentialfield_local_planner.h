@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #define PATH_POINT_NUM 10
+#define PI 3.1415926543
 
 namespace potentialfield_local_planner
 {
@@ -48,7 +49,7 @@ namespace potentialfield_local_planner
            void calculate_rep_force(geometry_msgs::PoseStamped start, VectorForce &force);
            double callinearDistance(double diff_x, double diff_y);
            void calPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, std::vector<geometry_msgs::PoseStamped> &path);
-           double calRotationZ(geometry_msgs::PoseStamped pose);
+           double calIdealAngle(double angle, int &use_backDrive);
            
            costmap_2d::Costmap2D* costmap_;
 
@@ -57,6 +58,7 @@ namespace potentialfield_local_planner
            double min_obs_dis_;
            double obs_cost_;
            double xy_goal_tolerance_;
+           double lookahead_;
     };
 }
 

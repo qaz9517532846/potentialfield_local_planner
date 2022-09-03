@@ -20,8 +20,8 @@ PotentialFieldLocalPlannerROS:
   timeout: 0.5
 
 # Potential Field Local Planner Parameter
-  lookahead: 0.7
+  lookahead: 0.8
   att_gain: 1.0
-  rep_gain: 0.3
-  min_obs_distance: 1.0
-  potential_obs_cost: 200
+  rep_gain: 0.7
+  min_obs_distance: 0.8
+  potential_obs_cost: 230
