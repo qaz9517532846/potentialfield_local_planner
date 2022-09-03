@@ -93,12 +93,22 @@ namespace potentialfield_local_planner
 		rotation = RestrictedForwardAngle(rotation);
 		//ROS_INFO("delta_th = %f", rotation);
 
+		// We need to compute the next heading point from the global plan.
+		// Calculate potential field local planning.
+		computeNextHeadingIndex(global_plan_, false);
+		ROS_INFO("Next Index = %d", next_heading_index_);
+		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
+		nav_msgs::Path local_path_ = path_publisher("map", local_plan_);
+		local_plan_pub_.publish(local_path_);
+
+		computeNextHeadingIndex(local_plan_, true);
+
 		if(linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) <= xy_tolerance_)
 		{
 			state_ = RotatingToGoal;
 		}
 		else if(fabs(rotation) <= yaw_moving_tolerance_ &&
-		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
+		        linearDistance(robot_pose_.pose.position, global_plan_[next_heading_index_].pose.position) > xy_tolerance_)
 		{
 			state_ = Moving;
 		}
@@ -127,14 +137,6 @@ namespace potentialfield_local_planner
 		// Set the default return value as false
 		bool ret = false;
 
-		// We need to compute the next heading point from the global plan.
-		// Calculate potential field local planning.
-		computeNextHeadingIndex(global_plan_);
-		ROS_INFO("Next Index = %d", next_heading_index_);
-		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
-		nav_msgs::Path local_path_ = path_publisher("map", local_plan_);
-		local_plan_pub_.publish(local_path_);
-
 		if(!costmap_ros_->getRobotPose(robot_pose_))
 		{
 			ROS_ERROR("path_executer: cannot get robot pose");
@@ -144,12 +146,15 @@ namespace potentialfield_local_planner
 		switch(state_)
 		{
 			case RotatingToStart:
+				//ROS_INFO("RotatingToStart");
 				ret = rotateToStart(cmd_vel);
 				break;
 			case Moving:
+				//ROS_INFO("Moving");
 				ret = move(cmd_vel);
 				break;
 			case RotatingToGoal:
+				//ROS_INFO("rotateToGoal");
 				ret = rotateToGoal(cmd_vel);
 				break;
 			default:
@@ -173,7 +178,7 @@ namespace potentialfield_local_planner
 		geometry_msgs::PoseStamped rotate_goal;
 
 		ros::Time now = ros::Time::now();
-		global_plan_[next_heading_index_].header.stamp = now;
+		local_plan_[next_heading_index_].header.stamp = now;
 
 		try
 		{
@@ -217,12 +222,13 @@ namespace potentialfield_local_planner
 
 		geometry_msgs::PoseStamped move_goal;
 		ros::Time now = ros::Time::now();
-		local_plan_.back().header.stamp = now;
+
+		local_plan_[next_heading_index_].header.stamp = now;
 
 		try
 		{
-			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_.back().header.frame_id, now, ros::Duration(transform_timeout_));
-      		tf2::doTransform(local_plan_.back(), move_goal, trans);
+			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_[next_heading_index_].header.frame_id, now, ros::Duration(transform_timeout_));
+      		tf2::doTransform(local_plan_[next_heading_index_], move_goal, trans);
 		}
 		catch(tf2::LookupException& ex)
 		{
@@ -251,6 +257,8 @@ namespace potentialfield_local_planner
 			// The robot has rotated to its next heading pose
 			cmd_vel.angular.z = 0.0;
 		}
+
+		cmd_vel.linear.x = calLinearVel();
 
 		double distance_to_next_heading = linearDistance(robot_pose_.pose.position, move_goal.pose.position);
 
@@ -297,9 +305,11 @@ namespace potentialfield_local_planner
 		return true;
 	}
 
-	void PotentialFieldLocalPlannerROS::computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan)
+	void PotentialFieldLocalPlannerROS::computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan, bool use_local)
 	{
 		geometry_msgs::PoseStamped next_heading_pose;
+
+		double look_dist = use_local ? heading_lookahead_ * heading_ratio_ : heading_lookahead_;
 
 		for(unsigned int i = curr_heading_index_; i < plan.size() - 1; ++i)
 		{
@@ -330,7 +340,7 @@ namespace potentialfield_local_planner
 			next_heading_index_ = i;
 
 			double dist = linearDistance(robot_pose_.pose.position, next_heading_pose.pose.position);
-			if(dist > heading_lookahead_)
+			if(dist > look_dist)
 			{
 				break;
 			}

@@ -21,6 +21,7 @@ PotentialFieldLocalPlannerROS:
 
 # Potential Field Local Planner Parameter
   lookahead: 0.8
+  local_look_ratio: 0.5
   att_gain: 1.0
   rep_gain: 0.7
   min_obs_distance: 0.8

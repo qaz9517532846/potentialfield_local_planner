@@ -83,11 +83,11 @@ namespace potentialfield_local_planner
         sum_force_.x = att_force_.x + rep_force_.x;
         sum_force_.y = att_force_.y + rep_force_.y;
 
-        ROS_INFO("att_force_x = %f", att_force_.x);
-        ROS_INFO("att_force_y = %f", att_force_.y);
+        //ROS_INFO("att_force_x = %f", att_force_.x);
+        //ROS_INFO("att_force_y = %f", att_force_.y);
 
-        ROS_INFO("rep_force_x = %f", rep_force_.x);
-        ROS_INFO("rep_force_y = %f", rep_force_.y);
+        //ROS_INFO("rep_force_x = %f", rep_force_.x);
+        //ROS_INFO("rep_force_y = %f", rep_force_.y);
 
         calPotentialFieldLocal_Path(start, sum_force_, PotentialFieldLocal_Plan_);
         return PotentialFieldLocal_Plan_;
@@ -126,6 +126,11 @@ namespace potentialfield_local_planner
 
     double PotentialFieldLocalPlanner::calIdealAngle(double angle, int &use_backDrive)
     {
+        if(angle > PI)
+			angle = angle - 2 * PI;
+		else if(angle < -PI)
+			angle = angle + 2 * PI;
+
         if(angle > PI / 2)
         {
             use_backDrive = -1;
