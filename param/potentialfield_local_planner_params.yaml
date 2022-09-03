@@ -24,5 +24,5 @@ PotentialFieldLocalPlannerROS:
   local_look_ratio: 0.5
   att_gain: 1.0
   rep_gain: 0.7
-  min_obs_distance: 0.8
+  min_obs_distance: 0.6
   potential_obs_cost: 230

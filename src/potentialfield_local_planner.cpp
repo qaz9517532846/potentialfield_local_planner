@@ -52,8 +52,8 @@ namespace potentialfield_local_planner
                     if(callinearDistance(diff_x, diff_y) < min_dis)
                     {
                         min_dis = callinearDistance(diff_x, diff_y);
-                        min_x = diff_x;
-                        min_y = diff_y;
+                        min_x = diff_x * 100;
+                        min_y = diff_y * 100;
                     }
                 }
             }
