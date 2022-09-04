@@ -49,8 +49,10 @@ namespace potentialfield_local_planner
            void calculate_rep_force(geometry_msgs::PoseStamped start, VectorForce &force);
            double callinearDistance(double diff_x, double diff_y);
            void calPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, std::vector<geometry_msgs::PoseStamped> &path);
+           void fixedPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, double angle, int direction, std::vector<geometry_msgs::PoseStamped> &path);
            double calIdealAngle(double angle, int &use_backDrive);
-           
+           int get_cost(geometry_msgs::PoseStamped pose);
+                      
            costmap_2d::Costmap2D* costmap_;
 
            double att_gain_;

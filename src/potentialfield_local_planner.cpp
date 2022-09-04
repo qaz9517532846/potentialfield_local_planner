@@ -115,8 +115,21 @@ namespace potentialfield_local_planner
             tf2::Vector3 force_point = tf2::Matrix3x3(quat) * tf2::Vector3(backForward * delta_dis * i, 0, 0);
             force_pose.pose.position.x += force_point[0];
 			force_pose.pose.position.y += force_point[1];
+            if(get_cost(force_pose) > obs_cost_)
+            {
+                path.clear();
+                break;
+            }
+
 			path.push_back(force_pose);
         }
+
+        if(path.size() > 0)
+        {
+            return;
+        }
+
+        fixedPotentialFieldLocal_Path(start, force, force_angle, backForward, path);
     }
 
     double PotentialFieldLocalPlanner::callinearDistance(double diff_x, double diff_y)
@@ -145,6 +158,49 @@ namespace potentialfield_local_planner
         {
             use_backDrive = 1;
             return angle;
+        }
+    }
+
+    int PotentialFieldLocalPlanner::get_cost(geometry_msgs::PoseStamped pose)
+    {
+        int local_costmap_pos[2];
+		costmap_->worldToMapEnforceBounds(pose.pose.position.x, pose.pose.position.y, local_costmap_pos[0], local_costmap_pos[1]);
+		return costmap_->getCost(local_costmap_pos[0], local_costmap_pos[1]);
+    }
+
+    void PotentialFieldLocalPlanner::fixedPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, double angle, int direction, std::vector<geometry_msgs::PoseStamped> &path)
+    {
+        if(angle > 0)
+            angle -= PI;
+        else
+            angle += PI;
+
+        if(direction == 1)
+            direction = -1;
+        else if(direction == -1)
+            direction = 1;
+
+        double delta_angle = angle / PATH_POINT_NUM;
+        double delta_dis = callinearDistance(force.x, force.y) / PATH_POINT_NUM;
+        double pose_angle = tf2::getYaw(start.pose.orientation);
+
+        path.push_back(start);
+
+        for(int i = 0; i < PATH_POINT_NUM; i++)
+        {
+            tf2::Quaternion quat;
+            geometry_msgs::Quaternion quat_tf;
+            geometry_msgs::PoseStamped force_pose = start;
+
+            quat.setRPY(0, 0, pose_angle + i * delta_angle);
+            quat_tf = tf2::toMsg(quat);
+            force_pose.pose.orientation = quat_tf;
+
+            tf2::Vector3 force_point = tf2::Matrix3x3(quat) * tf2::Vector3(direction * delta_dis * i, 0, 0);
+            force_pose.pose.position.x += force_point[0];
+			force_pose.pose.position.y += force_point[1];
+
+			path.push_back(force_pose);
         }
     }
 }
