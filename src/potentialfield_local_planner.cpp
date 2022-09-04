@@ -98,30 +98,15 @@ namespace potentialfield_local_planner
         int backForward = 1;
         double pose_angle = tf2::getYaw(start.pose.orientation);
         double force_angle = calIdealAngle(atan2(force.y, force.x) - pose_angle, backForward);
-        double delta_angle = force_angle / PATH_POINT_NUM;
-        double delta_dis = callinearDistance(force.x, force.y) / PATH_POINT_NUM;
-        path.push_back(start);
+        PotentialFieldLocal_Planning(start, force, force_angle, backForward, path);
 
-        for(int i = 0; i < PATH_POINT_NUM; i++)
+        for(const auto& pose : path)
         {
-            tf2::Quaternion quat;
-            geometry_msgs::Quaternion quat_tf;
-            geometry_msgs::PoseStamped force_pose = start;
-
-            quat.setRPY(0, 0, pose_angle + i * delta_angle);
-            quat_tf = tf2::toMsg(quat);
-            force_pose.pose.orientation = quat_tf;
-
-            tf2::Vector3 force_point = tf2::Matrix3x3(quat) * tf2::Vector3(backForward * delta_dis * i, 0, 0);
-            force_pose.pose.position.x += force_point[0];
-			force_pose.pose.position.y += force_point[1];
-            if(get_cost(force_pose) > obs_cost_)
+            if(get_cost(pose) > obs_cost_)
             {
                 path.clear();
                 break;
             }
-
-			path.push_back(force_pose);
         }
 
         if(path.size() > 0)
@@ -129,7 +114,17 @@ namespace potentialfield_local_planner
             return;
         }
 
-        fixedPotentialFieldLocal_Path(start, force, force_angle, backForward, path);
+        if(force_angle > 0)
+            force_angle -= PI;
+        else
+            force_angle += PI;
+
+        if(backForward == 1)
+            backForward = -1;
+        else if(backForward == -1)
+            backForward = 1;
+
+        PotentialFieldLocal_Planning(start, force, force_angle, backForward, path);
     }
 
     double PotentialFieldLocalPlanner::callinearDistance(double diff_x, double diff_y)
@@ -168,17 +163,8 @@ namespace potentialfield_local_planner
 		return costmap_->getCost(local_costmap_pos[0], local_costmap_pos[1]);
     }
 
-    void PotentialFieldLocalPlanner::fixedPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, double angle, int direction, std::vector<geometry_msgs::PoseStamped> &path)
+    void PotentialFieldLocalPlanner::PotentialFieldLocal_Planning(geometry_msgs::PoseStamped start, VectorForce force, double angle, int direction, std::vector<geometry_msgs::PoseStamped> &path)
     {
-        if(angle > 0)
-            angle -= PI;
-        else
-            angle += PI;
-
-        if(direction == 1)
-            direction = -1;
-        else if(direction == -1)
-            direction = 1;
 
         double delta_angle = angle / PATH_POINT_NUM;
         double delta_dis = callinearDistance(force.x, force.y) / PATH_POINT_NUM;
