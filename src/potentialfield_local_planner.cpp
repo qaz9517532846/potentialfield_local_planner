@@ -91,7 +91,6 @@ namespace potentialfield_local_planner
 
         calPotentialFieldLocal_Path(start, sum_force_, PotentialFieldLocal_Plan_);
 
-        ROS_INFO("local index = %d", PotentialFieldLocal_Plan_.size());
         return PotentialFieldLocal_Plan_;
     }
 
