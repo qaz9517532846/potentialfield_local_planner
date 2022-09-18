@@ -108,7 +108,7 @@ namespace potentialfield_local_planner
 			state_ = RotatingToGoal;
 		}
 		else if(fabs(rotation) <= yaw_moving_tolerance_ &&
-		        linearDistance(robot_pose_.pose.position, global_plan_[next_heading_index_].pose.position) > xy_tolerance_)
+		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
 		{
 			state_ = Moving;
 		}
@@ -146,15 +146,12 @@ namespace potentialfield_local_planner
 		switch(state_)
 		{
 			case RotatingToStart:
-				//ROS_INFO("RotatingToStart");
 				ret = rotateToStart(cmd_vel);
 				break;
 			case Moving:
-				//ROS_INFO("Moving");
 				ret = move(cmd_vel);
 				break;
 			case RotatingToGoal:
-				//ROS_INFO("rotateToGoal");
 				ret = rotateToGoal(cmd_vel);
 				break;
 			default:
