@@ -12,6 +12,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2/utils.h>
 #include "tf2/LinearMath/Quaternion.h"
+#include <tf/transform_broadcaster.h>
 #include <costmap_2d/costmap_2d_ros.h>
 
 #include <potentialfield_local_planner/PotentialFieldLocalPlannerConfig.h>
@@ -34,33 +35,21 @@ namespace potentialfield_local_planner
 
            unsigned int width_;
            unsigned int height_;
-
-           double resolution_;
+           unsigned int mapSize_;
 
         private:
 
-           struct VectorForce
-           {
-                double x;
-                double y;
-           };
-
-           void calculate_att_force(geometry_msgs::PoseStamped start, geometry_msgs::PoseStamped goal, VectorForce &force);
-           void calculate_rep_force(geometry_msgs::PoseStamped start, VectorForce &force);
-           double callinearDistance(double diff_x, double diff_y);
-           void calPotentialFieldLocal_Path(geometry_msgs::PoseStamped start, VectorForce force, std::vector<geometry_msgs::PoseStamped> &path);
-           void PotentialFieldLocal_Planning(geometry_msgs::PoseStamped start, VectorForce force, double angle, int direction, std::vector<geometry_msgs::PoseStamped> &path);
-           double calIdealAngle(double angle, int &use_backDrive);
-           int get_cost(geometry_msgs::PoseStamped pose);
+           void potentialFieldForce(geometry_msgs::PoseStamped goal);
+           bool isCenterOutMap(int cost_x, int cost_y, int direct_x, int direct_y);
                       
            costmap_2d::Costmap2D* costmap_;
 
            double att_gain_;
            double rep_gain_;
-           double min_obs_dis_;
-           double obs_cost_;
-           double xy_goal_tolerance_;
-           double lookahead_;
+
+           int* attCost_;
+           int* repCost_;
+           int* potentialCost_;
     };
 }
 

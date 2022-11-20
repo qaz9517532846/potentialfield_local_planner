@@ -31,6 +31,8 @@ namespace potentialfield_local_planner
 		tf_ = tf;
 		costmap_ros_ = costmap_ros;
 
+		heading_lookahead_ = costmap_ros_->getCostmap()->getSizeInCellsX() * costmap_ros_->getCostmap()->getResolution() / 2;
+
 		linear_vel_.current_vel = 0;
 		rotation_vel_.current_vel = 0;
 		
@@ -57,7 +59,6 @@ namespace potentialfield_local_planner
 		yaw_tolerance_ = config.yaw_goal_tolerance;
 		yaw_moving_tolerance_ = config.yaw_moving_tolerance;
      	transform_timeout_ = config.timeout;
-		heading_lookahead_ = config.lookahead;
 
 		dp_->reconfigureCB(config);
 	}
@@ -88,32 +89,29 @@ namespace potentialfield_local_planner
 			return false;
 		}
 
+		computeNextHeadingIndex(global_plan_);
+
 		// Calculate the rotation between the current odom and the vector created above
 		double rotation = calDeltaAngle(robot_pose_, global_plan_[path_index_]);
 		rotation = RestrictedForwardAngle(rotation);
-		//ROS_INFO("delta_th = %f", rotation);
 
-		// We need to compute the next heading point from the global plan.
-		// Calculate potential field local planning.
-		computeNextHeadingIndex(global_plan_, false);
-		ROS_INFO("Next Index = %d", next_heading_index_);
 		local_plan_ = dp_->PotentialFieldLocal_Planner(robot_pose_, global_plan_[next_heading_index_]);
+		headingSize_ = local_plan_.size() - 1;
 		nav_msgs::Path local_path_ = path_publisher("map", local_plan_);
-		local_plan_pub_.publish(local_path_);
 
-		computeNextHeadingIndex(local_plan_, true);
+		local_plan_pub_.publish(local_path_);
 
 		if(linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) <= xy_tolerance_)
 		{
 			state_ = RotatingToGoal;
 		}
 		else if(fabs(rotation) <= yaw_moving_tolerance_ &&
-		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
+		        linearDistance(robot_pose_.pose.position, local_plan_[headingSize_].pose.position) > xy_tolerance_)
 		{
 			state_ = Moving;
 		}
 		else if(fabs(rotation) > yaw_moving_tolerance_ &&
-		        linearDistance(robot_pose_.pose.position, global_plan_[path_index_].pose.position) > xy_tolerance_)
+		        linearDistance(robot_pose_.pose.position, local_plan_[headingSize_].pose.position) > xy_tolerance_)
 		{
 			state_ = RotatingToStart;
 		}
@@ -175,12 +173,12 @@ namespace potentialfield_local_planner
 		geometry_msgs::PoseStamped rotate_goal;
 
 		ros::Time now = ros::Time::now();
-		local_plan_[next_heading_index_].header.stamp = now;
+		local_plan_[headingSize_].header.stamp = now;
 
 		try
 		{
-			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, global_plan_[next_heading_index_].header.frame_id, now, ros::Duration(transform_timeout_));
-      		tf2::doTransform(global_plan_[next_heading_index_], rotate_goal, trans);
+			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_[headingSize_].header.frame_id, now, ros::Duration(transform_timeout_));
+      		tf2::doTransform(local_plan_[headingSize_], rotate_goal, trans);
 		}
 		catch(tf2::LookupException& ex)
 		{
@@ -220,12 +218,12 @@ namespace potentialfield_local_planner
 		geometry_msgs::PoseStamped move_goal;
 		ros::Time now = ros::Time::now();
 
-		local_plan_[next_heading_index_].header.stamp = now;
+		local_plan_[headingSize_].header.stamp = now;
 
 		try
 		{
-			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_[next_heading_index_].header.frame_id, now, ros::Duration(transform_timeout_));
-      		tf2::doTransform(local_plan_[next_heading_index_], move_goal, trans);
+			geometry_msgs::TransformStamped trans = tf_->lookupTransform(robot_pose_.header.frame_id, local_plan_[headingSize_].header.frame_id, now, ros::Duration(transform_timeout_));
+      		tf2::doTransform(local_plan_[headingSize_], move_goal, trans);
 		}
 		catch(tf2::LookupException& ex)
 		{
@@ -302,11 +300,9 @@ namespace potentialfield_local_planner
 		return true;
 	}
 
-	void PotentialFieldLocalPlannerROS::computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan, bool use_local)
+	void PotentialFieldLocalPlannerROS::computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan)
 	{
 		geometry_msgs::PoseStamped next_heading_pose;
-
-		double look_dist = use_local ? heading_lookahead_ * heading_ratio_ : heading_lookahead_;
 
 		for(unsigned int i = curr_heading_index_; i < plan.size() - 1; ++i)
 		{
@@ -337,7 +333,7 @@ namespace potentialfield_local_planner
 			next_heading_index_ = i;
 
 			double dist = linearDistance(robot_pose_.pose.position, next_heading_pose.pose.position);
-			if(dist > look_dist)
+			if(dist > heading_lookahead_)
 			{
 				break;
 			}

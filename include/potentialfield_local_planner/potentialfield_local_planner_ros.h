@@ -47,7 +47,7 @@ namespace potentialfield_local_planner
            bool rotateToStart(geometry_msgs::Twist& cmd_vel);
            bool move(geometry_msgs::Twist& cmd_vel);
            bool rotateToGoal(geometry_msgs::Twist& cmd_vel);
-           void computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan, bool use_local);
+           void computeNextHeadingIndex(std::vector<geometry_msgs::PoseStamped> plan);
            double calLinearVel();
            double calRotationVel(double rotation);
            double linearDistance(geometry_msgs::Point p1, geometry_msgs::Point p2);
@@ -102,7 +102,7 @@ namespace potentialfield_local_planner
            double yaw_moving_tolerance_;
            double transform_timeout_;
            double heading_lookahead_;
-           double heading_ratio_;
+           double headingSize_;
 
            bool use_BackForward;
            ros::Time last_time_;
