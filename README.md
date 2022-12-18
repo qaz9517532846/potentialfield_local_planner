@@ -48,7 +48,7 @@ $ git clone https://github.com/qaz9517532846/potentialfield_local_planner.git
 
 [2]. robotino_local_planner. http://wiki.ros.org/robotino_local_planner
 
-[3]. potential fieled. https://medium.com/geekculture/path-planning-and-collision-avoidance-artificial-potential-field-da10073a8fd2
+[3]. potential field. https://medium.com/geekculture/path-planning-and-collision-avoidance-artificial-potential-field-da10073a8fd2
 
 ------
 
